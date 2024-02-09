@@ -1,74 +1,41 @@
 <script>
     import { onMount } from "svelte";
     import * as d3 from "d3";
-    import { load } from "@tensorflow-models/universal-sentence-encoder";
-    import { UMAP } from "umap-js";
-
+    import Umap from "../components/Umap.svelte";
     let data = [];
-    let wordClusters = [];
+    let umap = [];
+    $: searchTerm = "";
 
     onMount(async () => {
         data = await d3.csv("data.csv");
-
-        const model = await load();
-        const embeddings = await model.embed(data.map((d) => d.text));
-        const embeddingsArray = embeddings.arraySync();
-        const textWithEmbeddings = data.map((d, i) => ({
-            text: d.text,
-            url: d.url,
-            embedding: embeddingsArray[i],
-        }));
-
-        const umap = new UMAP();
-        const umapData = umap.fit(
-            textWithEmbeddings.map((item) => item.embedding),
+        umap = await d3.json("umap.json");
+        data.filter((d) => d.url.length > 0).sort((a, b) =>
+            a.text.localeCompare(b.text),
         );
-
-        // Normalize UMAP data to fit within the container
-        const normalizedUmapData = umapData.map((pos) => [
-            ((pos[0] - Math.min(...umapData.map((p) => p[0]))) /
-                (Math.max(...umapData.map((p) => p[0])) -
-                    Math.min(...umapData.map((p) => p[0])))) *
-                100,
-            ((pos[1] - Math.min(...umapData.map((p) => p[1]))) /
-                (Math.max(...umapData.map((p) => p[1])) -
-                    Math.min(...umapData.map((p) => p[1])))) *
-                100,
-        ]);
-
-        wordClusters = textWithEmbeddings
-            .map((item, index) => ({
-                text: item.text,
-                url: item.url,
-                position: normalizedUmapData[index],
-            }))
-            .sort((a, b) => {
-                if (a.position[1] !== b.position[1]) {
-                    return a.position[1] - b.position[1]; // sort vertical
-                }
-                return a.position[0] - b.position[0]; // If vertical positions are the same, sort by horizontal position
-            });
-
-        console.log(wordClusters);
     });
+
+    $: sorted = data.filter((item) =>
+        item.text.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
 </script>
 
-<section class="umap-container">
-    {#if wordClusters.length > 0}
-        {#each wordClusters as { text, url, position }}
-            <div
-                class="umap-point"
-                style="left: {position[0]}%; top: {position[1]}%;"
-            >
+{#if data.length > 0}
+    {#if umap.length > 0}
+        <Umap data={sorted} {umap} />
+    {/if}
+    <section class="container">
+        <input bind:value={searchTerm} placeholder="Search..." />
+        {#each sorted as { text, url, x, y }}
+            <div class="point">
                 <a href={url} target="_blank">
                     {text}
                 </a>
             </div>
         {/each}
-    {:else}
-        <p>Loading...</p>
-    {/if}
-</section>
+    </section>
+{:else}
+    <p>Loading...</p>
+{/if}
 
 <style>
     :global(body) {
@@ -82,24 +49,34 @@
         margin: 0;
     }
 
-    .umap-container {
+    .container {
+        padding-top: 2rem;
         font-family: sans-serif;
-        position: relative;
-        width: 100vw;
-        height: 100vh;
-        padding: 10px;
-        font-size: 14px;
+        max-width: 768px;
+        margin: 0 auto;
+        font-size: 24px;
     }
 
-    .umap-point {
-        position: relative;
+    input {
+        margin: 5px;
+        padding: 2px;
+        min-height: 30px;
+        width: 100%;
+        border-radius: 10px;
+        border-style: none;
     }
 
     a {
-        background: linear-gradient(to right, blue, gainsboro, purple);
-        color: transparent;
-        -webkit-background-clip: text;
-        background-clip: text;
+        margin: 5px;
+        padding: 2px;
+        display: inline-flex;
         text-decoration: unset;
+        /* background: linear-gradient(to right, blue, gainsboro, purple); */
+        background-color: white;
+        color: black;
+        /* -webkit-background-clip: text; */
+        /* background-clip: text;
+        text-decoration: unset; */
+        border-radius: 10px;
     }
 </style>

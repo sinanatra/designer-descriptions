@@ -29,7 +29,7 @@ def scrape_arena_api(channel_slug):
 channel_slug = 'designer-studio-self-descriptions'
 texts = scrape_arena_api(channel_slug)
 
-csv_file_path = 'static/data.csv'
+csv_file_path = './data.csv'
 fieldnames = ['url', 'text']
 
 with open(csv_file_path, 'w', newline='', encoding='utf-8') as csv_file:
